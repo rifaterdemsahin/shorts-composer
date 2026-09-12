@@ -1,0 +1,28 @@
+{
+  "inputs": {
+    "background_image": "assets/background.png",
+    "foreground_video": "assets/foreground.mp4",
+    "subtitles_file": "assets/subtitles.srt",
+    "source_truth_txt": "assets/script.txt"
+  },
+  "chroma_key": {
+    "key_color_rgb": [0, 255, 0],
+    "threshold": 100,
+    "blur": 2
+  },
+  "foreground_transform": {
+    "scale": 0.8,
+    "position": ["center", "bottom"]
+  },
+  "subtitle_style": {
+    "font": "Arial",
+    "fontsize": 36,
+    "color": "yellow",
+    "bg_color": "black",
+    "position": ["center", 0.85]
+  },
+  "output": {
+    "filepath": "output_short.mp4",
+    "fps": 30
+  }
+}

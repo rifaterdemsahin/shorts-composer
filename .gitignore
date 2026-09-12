@@ -1,0 +1,7 @@
+venv/
+__pycache__/
+*.mp4
+assets/*
+!assets/.keep
+!assets/pipeline.svg
+.DS_Store

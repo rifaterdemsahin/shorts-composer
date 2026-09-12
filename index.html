@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Composer Dashboard</title>
+  <style>
+    body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .card { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    textarea, input, button { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; background: #2a2a2a; color: #fff; border: 1px solid #444; }
+    textarea { height: 150px; font-family: monospace; }
+    button { background: #0066cc; cursor: pointer; border: none; padding: 10px; margin-top: 10px; }
+    video, img { max-width: 100%; max-height: 200px; display: block; margin-top: 10px; }
+    pre { background: #000; padding: 10px; overflow-x: auto; color: #00ff66; }
+  </style>
+</head>
+<body>
+  <h1>AI Short Composer</h1>
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>1. Upload Assets</h2>
+        <form id="uploadForm">
+          <input type="file" id="fileInput" required />
+          <button type="submit">Upload</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>2. Media Previews</h2>
+        <label>Background</label><img id="bgPreview" src="" />
+        <label>Foreground</label><video id="fgPreview" controls src=""></video>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>3. Timeline (JSON)</h2>
+        <textarea id="configEditor"></textarea>
+        <button onclick="saveConfig()">Save Config</button>
+      </div>
+      <div class="card">
+        <h2>4. Render & Verify</h2>
+        <button onclick="renderVideo()" style="background:#00a86b;">1. Render Video</button>
+        <button onclick="runTest()" style="background:#d97706;">2. Verify against Source Truth</button>
+        <div id="status" style="margin-top:10px;"></div>
+        <video id="outputVideo" controls></video>
+        <pre id="testResults"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadConfig() {
+      const res = await fetch('/api/config');
+      const data = await res.json();
+      document.getElementById('configEditor').value = JSON.stringify(data, null, 2);
+      document.getElementById('bgPreview').src = '/' + data.inputs.background_image;
+      document.getElementById('fgPreview').src = '/' + data.inputs.foreground_video;
+    }
+
+    async function saveConfig() {
+      const parsed = JSON.parse(document.getElementById('configEditor').value);
+      await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: parsed }) });
+      alert('Config Saved');
+      loadConfig();
+    }
+
+    document.getElementById('uploadForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const formData = new FormData();
+      formData.append('file', document.getElementById('fileInput').files[0]);
+      await fetch('/api/upload', { method: 'POST', body: formData });
+      loadConfig();
+    };
+
+    async function renderVideo() {
+      document.getElementById('status').innerText = "Rendering...";
+      await fetch('/api/render', { method: 'POST' });
+      document.getElementById('status').innerText = "Render Complete!";
+      document.getElementById('outputVideo').src = "/output?" + Date.now();
+    }
+
+    async function runTest() {
+      document.getElementById('testResults').innerText = "Running Whisper verification...";
+      const res = await fetch('/api/test-sync', { method: 'POST' });
+      document.getElementById('testResults').innerText = JSON.stringify(await res.json(), null, 2);
+    }
+
+    loadConfig();
+  </script>
+</body>
+</html>

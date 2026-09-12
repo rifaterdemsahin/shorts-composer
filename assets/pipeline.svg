@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 220" font-family="Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0066cc"/>
+    </marker>
+  </defs>
+
+  <style>
+    .box { fill: #1e1e1e; stroke: #0066cc; stroke-width: 2; rx: 8; }
+    .label { fill: #ffffff; font-size: 14px; font-weight: bold; text-anchor: middle; }
+    .sub { fill: #aaaaaa; font-size: 11px; text-anchor: middle; }
+    .edge { stroke: #0066cc; stroke-width: 2; fill: none; marker-end: url(#arrow); }
+  </style>
+
+  <rect width="1180" height="220" fill="#121212"/>
+
+  <!-- Step 1: Assets -->
+  <rect class="box" x="20" y="70" width="160" height="80"/>
+  <text class="label" x="100" y="100">Assets</text>
+  <text class="sub" x="100" y="118">background.png</text>
+  <text class="sub" x="100" y="132">foreground.mp4</text>
+  <text class="sub" x="100" y="146">script.txt / srt</text>
+
+  <!-- Step 2: Config -->
+  <rect class="box" x="220" y="70" width="160" height="80"/>
+  <text class="label" x="300" y="100">config.json</text>
+  <text class="sub" x="300" y="118">chroma key</text>
+  <text class="sub" x="300" y="132">transform</text>
+  <text class="sub" x="300" y="146">subtitle style</text>
+
+  <!-- Step 3: Composer -->
+  <rect class="box" x="420" y="70" width="160" height="80"/>
+  <text class="label" x="500" y="100">composer.py</text>
+  <text class="sub" x="500" y="118">chroma-key mask</text>
+  <text class="sub" x="500" y="132">composite + burn-in</text>
+  <text class="sub" x="500" y="146">render mp4</text>
+
+  <!-- Step 4: Output -->
+  <rect class="box" x="620" y="70" width="160" height="80"/>
+  <text class="label" x="700" y="100">output_short.mp4</text>
+  <text class="sub" x="700" y="118">final rendered</text>
+  <text class="sub" x="700" y="132">short video</text>
+
+  <!-- Step 5: Verifier -->
+  <rect class="box" x="820" y="70" width="160" height="80"/>
+  <text class="label" x="900" y="100">verifier.py</text>
+  <text class="sub" x="900" y="118">Whisper transcribe</text>
+  <text class="sub" x="900" y="132">Levenshtein diff</text>
+  <text class="sub" x="900" y="146">vs script.txt</text>
+
+  <!-- Step 6: Report -->
+  <rect class="box" x="1000" y="70" width="160" height="80"/>
+  <text class="label" x="1080" y="100">Pass / Fail</text>
+  <text class="sub" x="1080" y="118">match scores</text>
+  <text class="sub" x="1080" y="132">JSON report</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M180,110 H220"/>
+  <path class="edge" d="M380,110 H420"/>
+  <path class="edge" d="M580,110 H620"/>
+  <path class="edge" d="M780,110 H820"/>
+  <path class="edge" d="M980,110 H1000"/>
+
+  <!-- server.py orchestration bar -->
+  <rect x="20" y="180" width="1140" height="28" fill="none" stroke="#00a86b" stroke-width="1.5" rx="6"/>
+  <text x="590" y="199" text-anchor="middle" font-size="12" fill="#00a86b">server.py (FastAPI) orchestrates upload → config → render → verify via index.html dashboard</text>
+</svg>

@@ -1,0 +1,9 @@
+moviepy>=1.0.3
+numpy
+pillow
+pysrt
+fastapi
+uvicorn
+python-multipart
+openai-whisper
+Levenshtein
