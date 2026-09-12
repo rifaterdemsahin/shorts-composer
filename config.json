@@ -1,14 +1,15 @@
 {
   "inputs": {
-    "background_image": "assets/background.png",
-    "foreground_video": "assets/foreground.mp4",
+    "background_image": "assets/default-background.jpg",
+    "foreground_video": "assets/default-aroll.webm",
     "subtitles_file": "assets/subtitles.srt",
     "source_truth_txt": "assets/script.txt"
   },
   "chroma_key": {
+    "_comment": "default-aroll.webm has a real brown backdrop, not a green screen, so color-distance keying can't cleanly separate it from skin tones. threshold=0 disables keying and composites the a-roll as an opaque inset over the background instead. Swap in real green-screen footage and a threshold like 60-90 to enable true keying.",
     "key_color_rgb": [0, 255, 0],
-    "threshold": 100,
-    "blur": 2
+    "threshold": 0,
+    "blur": 5
   },
   "foreground_transform": {
     "scale": 0.8,

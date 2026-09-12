@@ -4,4 +4,9 @@ __pycache__/
 assets/*
 !assets/.keep
 !assets/pipeline.svg
+!assets/default-background.jpg
+!assets/default-aroll.webm
+!assets/default-subtitles.webm
+!assets/subtitles.srt
+!assets/script.txt
 .DS_Store

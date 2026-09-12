@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>AI Short Composer — Pipeline Test</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #121212; color: #eee; padding: 20px; margin: 0; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 20px; }
+  a.back { color: #9ecbff; font-size: 12px; text-decoration: none; }
+  .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .card { background: #1e1e1e; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
+  .card h2 { font-size: 13px; margin: 0 0 12px; color: #9ecbff; text-transform: uppercase; letter-spacing: .04em; }
+  button { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; background: #00a86b; color: #fff; font-size: 14px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .pipeline { display: flex; gap: 8px; margin: 14px 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 110px; padding: 10px; border-radius: 6px; background: #2a2a2a; border: 1px solid #3a3a3a; text-align: center; font-size: 12px; color: #999; transition: all .2s; }
+  .step.active { background: #113a5c; border-color: #2e79c9; color: #9ecbff; }
+  .step.done { background: #113d2c; border-color: #1f9d5f; color: #6fe3a4; }
+  .step.error { background: #4a1414; border-color: #b23a3a; color: #ff9d9d; }
+  pre#logs { background: #0a0a0a; color: #7ee787; font-size: 12px; padding: 12px; border-radius: 6px; height: 320px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; margin: 0; }
+  img#pipelineSvg { width: 100%; background: #fff; border-radius: 6px; padding: 8px; box-sizing: border-box; }
+  video#outputVideo { width: 100%; max-width: 340px; border-radius: 8px; border: 1px solid #333; display: block; margin: 0 auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+  td, th { padding: 6px 8px; border-bottom: 1px solid #333; text-align: left; }
+  .pass { color: #6fe3a4; font-weight: 700; }
+  .fail { color: #ff9d9d; font-weight: 700; }
+  .score-bar { background: #2a2a2a; border-radius: 4px; height: 8px; overflow: hidden; margin-top: 4px; }
+  .score-fill { height: 100%; background: #1f9d5f; }
+  #statusLine { font-size: 13px; color: #9ecbff; margin-top: 6px; min-height: 18px; }
+  details summary { cursor: pointer; font-size: 12px; color: #888; }
+  code { background: #2a2a2a; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <a class="back" href="/">&larr; Back to editor</a>
+  <h1>AI Short Composer — Pipeline Test</h1>
+  <div class="sub">Runs the real server-side pipeline (chroma-key/composite &rarr; subtitle burn-in &rarr; Whisper verification) against the bundled default assets and shows live logs.</div>
+
+  <div class="layout">
+    <div>
+      <div class="card">
+        <h2>Pipeline</h2>
+        <div class="pipeline">
+          <div class="step" id="step-render">1. Render<br/>(composer.py)</div>
+          <div class="step" id="step-verify">2. Verify<br/>(Whisper)</div>
+          <div class="step" id="step-done">3. Done</div>
+        </div>
+        <button id="runBtn">Run Pipeline</button>
+        <div id="statusLine">Idle.</div>
+        <details style="margin-top:10px;">
+          <summary>Inputs being used (config.json)</summary>
+          <pre id="configView" style="font-size:11px; background:#0a0a0a; padding:10px; border-radius:6px; overflow-x:auto;"></pre>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Live logs</h2>
+        <pre id="logs">Waiting for a run…</pre>
+      </div>
+
+      <div class="card">
+        <h2>Pipeline diagram</h2>
+        <img id="pipelineSvg" src="/assets/pipeline.svg" alt="pipeline diagram" />
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Output</h2>
+        <video id="outputVideo" controls></video>
+        <div id="outputHint" class="sub" style="text-align:center; margin-top:8px;">Run the pipeline to generate output_short.mp4.</div>
+      </div>
+
+      <div class="card">
+        <h2>Verification report</h2>
+        <table id="reportTable" style="display:none;">
+          <tr><td>Actor followed script</td><td id="scoreAudio"></td></tr>
+          <tr><td>SRT matches script</td><td id="scoreSrt"></td></tr>
+          <tr><td>Overall</td><td id="scorePass"></td></tr>
+        </table>
+        <details style="margin-top:10px;">
+          <summary>Transcript comparison</summary>
+          <p style="font-size:12px;"><b>Ground truth:</b> <span id="txtTruth"></span></p>
+          <p style="font-size:12px;"><b>Spoken audio (Whisper):</b> <span id="txtAudio"></span></p>
+          <p style="font-size:12px;"><b>Generated SRT:</b> <span id="txtSrt"></span></p>
+        </details>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const runBtn = $("runBtn"), statusLine = $("statusLine"), logsEl = $("logs");
+let polling = null;
+
+async function loadConfig() {
+  const res = await fetch("/api/config");
+  const cfg = await res.json();
+  $("configView").textContent = JSON.stringify(cfg, null, 2);
+}
+loadConfig();
+
+function setStep(id, cls) {
+  const el = $(id);
+  el.classList.remove("active", "done", "error");
+  if (cls) el.classList.add(cls);
+}
+
+function renderStage(stage) {
+  setStep("step-render", stage === "rendering" ? "active" : (["verifying","done"].includes(stage) ? "done" : (stage==="error"?"error":"")));
+  setStep("step-verify", stage === "verifying" ? "active" : (stage === "done" ? "done" : (stage==="error"?"error":"")));
+  setStep("step-done", stage === "done" ? "done" : "");
+}
+
+function renderReport(report) {
+  if (!report) return;
+  $("reportTable").style.display = "table";
+  $("scoreAudio").innerHTML = `${report.scores.actor_followed_script}%`;
+  $("scoreSrt").innerHTML = `${report.scores.srt_matches_script}%`;
+  $("scorePass").innerHTML = report.passed
+    ? '<span class="pass">PASS</span>'
+    : '<span class="fail">FAIL</span>';
+  $("txtTruth").textContent = report.texts.ground_truth;
+  $("txtAudio").textContent = report.texts.spoken_audio;
+  $("txtSrt").textContent = report.texts.srt_generated;
+}
+
+async function poll() {
+  const res = await fetch("/api/status");
+  const state = await res.json();
+
+  renderStage(state.stage);
+  logsEl.textContent = state.logs.map(l => l.message).join("\n") || "Waiting for a run…";
+  logsEl.scrollTop = logsEl.scrollHeight;
+
+  if (state.stage === "rendering") statusLine.textContent = "Rendering video with moviepy (chroma-key/composite + subtitle burn-in)…";
+  else if (state.stage === "verifying") statusLine.textContent = "Transcribing output with Whisper and comparing to script…";
+  else if (state.stage === "done") {
+    statusLine.textContent = "Done.";
+    const v = $("outputVideo");
+    v.src = "/output?ts=" + Date.now();
+    $("outputHint").style.display = "none";
+    renderReport(state.report);
+    stopPolling();
+    runBtn.disabled = false;
+  } else if (state.stage === "error") {
+    statusLine.textContent = "Error: " + state.error;
+    stopPolling();
+    runBtn.disabled = false;
+  }
+}
+
+function stopPolling() {
+  if (polling) { clearInterval(polling); polling = null; }
+}
+
+runBtn.onclick = async () => {
+  runBtn.disabled = true;
+  statusLine.textContent = "Starting…";
+  logsEl.textContent = "";
+  $("reportTable").style.display = "none";
+  try {
+    await fetch("/api/run", { method: "POST" });
+  } catch (e) {
+    statusLine.textContent = "Failed to start: " + e;
+    runBtn.disabled = false;
+    return;
+  }
+  stopPolling();
+  polling = setInterval(poll, 800);
+};
+
+// Reflect current state on load (in case a run is already in progress or finished).
+poll();
+</script>
+</body>
+</html>

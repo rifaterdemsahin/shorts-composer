@@ -1,90 +1,445 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Composer Dashboard</title>
-  <style>
-    body { font-family: sans-serif; background: #121212; color: #fff; padding: 20px; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .card { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-    textarea, input, button { width: 100%; padding: 8px; margin-top: 5px; box-sizing: border-box; background: #2a2a2a; color: #fff; border: 1px solid #444; }
-    textarea { height: 150px; font-family: monospace; }
-    button { background: #0066cc; cursor: pointer; border: none; padding: 10px; margin-top: 10px; }
-    video, img { max-width: 100%; max-height: 200px; display: block; margin-top: 10px; }
-    pre { background: #000; padding: 10px; overflow-x: auto; color: #00ff66; }
-  </style>
+<meta charset="utf-8" />
+<title>AI Short Composer</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #121212; color: #eee; padding: 20px; margin: 0; }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  .layout { display: grid; grid-template-columns: 340px 1fr 340px; gap: 20px; align-items: start; }
+  @media (max-width: 1000px) { .layout { grid-template-columns: 1fr; } }
+  .card { background: #1e1e1e; padding: 14px; border-radius: 8px; margin-bottom: 16px; }
+  .card h2 { font-size: 14px; margin: 0 0 10px; color: #9ecbff; text-transform: uppercase; letter-spacing: .04em; }
+  label { display: block; font-size: 12px; color: #aaa; margin-top: 10px; }
+  input[type=file], textarea, input[type=range], input[type=number], select {
+    width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box;
+    background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px;
+  }
+  textarea { height: 110px; font-family: monospace; font-size: 12px; resize: vertical; }
+  button { width: 100%; padding: 10px; margin-top: 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; }
+  .btn-primary { background: #0066cc; color: #fff; }
+  .btn-render { background: #00a86b; color: #fff; }
+  .btn-download { background: #d97706; color: #fff; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row span { font-size: 11px; color: #888; min-width: 34px; text-align: right; }
+  .stage { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  canvas { width: 100%; max-width: 405px; aspect-ratio: 9/16; background: #000; border-radius: 8px; border: 1px solid #333; }
+  .controls { display: flex; gap: 8px; width: 100%; max-width: 405px; }
+  .controls button { flex: 1; }
+  progress { width: 100%; max-width: 405px; height: 8px; }
+  #status { font-size: 12px; color: #9ecbff; min-height: 16px; }
+  video.hidden-src { display: none; }
+  .hint { font-size: 11px; color: #777; margin-top: 4px; line-height: 1.4; }
+</style>
 </head>
 <body>
-  <h1>AI Short Composer</h1>
-  <div class="grid">
+  <h1>AI Short Composer — Client-Side Layer Editor</h1>
+  <div class="layout">
+
+    <!-- LEFT: Layer 1 Background + Layer 2 Chroma Key -->
     <div>
       <div class="card">
-        <h2>1. Upload Assets</h2>
-        <form id="uploadForm">
-          <input type="file" id="fileInput" required />
-          <button type="submit">Upload</button>
-        </form>
+        <h2>Layer 1 · Background</h2>
+        <input type="file" id="bgInput" accept="image/*" />
+        <label>Blur (<span id="blurVal">0</span>px)</label>
+        <input type="range" id="blurRange" min="0" max="30" value="0" />
+        <label>Darkness (<span id="darkVal">0</span>%)</label>
+        <input type="range" id="darkRange" min="0" max="90" value="30" />
       </div>
+
       <div class="card">
-        <h2>2. Media Previews</h2>
-        <label>Background</label><img id="bgPreview" src="" />
-        <label>Foreground</label><video id="fgPreview" controls src=""></video>
+        <h2>Layer 2 · Chroma Key Video</h2>
+        <input type="file" id="fgInput" accept="video/*" />
+        <label>Threshold (<span id="threshVal">70</span>)</label>
+        <input type="range" id="threshRange" min="0" max="150" value="70" />
+        <label>Despill (<span id="despillVal">60</span>%)</label>
+        <input type="range" id="despillRange" min="0" max="100" value="60" />
+        <label>Scale (<span id="scaleVal">100</span>%)</label>
+        <input type="range" id="scaleRange" min="20" max="150" value="100" />
+        <div class="hint">Green dominance g − max(r,b) &gt; threshold ⇒ transparent. Near-edge pixels get despill correction, not a hard cut, to avoid ghosting/fringing.</div>
       </div>
     </div>
+
+    <!-- CENTER: Live canvas preview + render controls -->
+    <div class="stage">
+      <div class="card" style="width:100%; max-width:405px;">
+        <h2>Preview</h2>
+        <canvas id="stage" width="1080" height="1920"></canvas>
+        <div class="controls">
+          <button class="btn-primary" id="playBtn">▶ Play Preview</button>
+        </div>
+      </div>
+      <div class="card" style="width:100%; max-width:405px;">
+        <h2>Render</h2>
+        <button class="btn-render" id="renderBtn">Generate Output (H.264 MP4)</button>
+        <progress id="renderProgress" value="0" max="1"></progress>
+        <div id="status"></div>
+        <a id="downloadLink" style="display:none;">
+          <button class="btn-download" type="button">Download output_short.mp4</button>
+        </a>
+        <div class="hint">Chroma key, blur/darken and karaoke captions are composited frame-by-frame in 32-bit RGBA canvas space, then encoded client-side with WebCodecs (avc1) + AAC audio and muxed into a standard, moov-first MP4 — no cloud transcoding step.</div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Layer 3 Transcript / Subtitles -->
     <div>
       <div class="card">
-        <h2>3. Timeline (JSON)</h2>
-        <textarea id="configEditor"></textarea>
-        <button onclick="saveConfig()">Save Config</button>
-      </div>
-      <div class="card">
-        <h2>4. Render & Verify</h2>
-        <button onclick="renderVideo()" style="background:#00a86b;">1. Render Video</button>
-        <button onclick="runTest()" style="background:#d97706;">2. Verify against Source Truth</button>
-        <div id="status" style="margin-top:10px;"></div>
-        <video id="outputVideo" controls></video>
-        <pre id="testResults"></pre>
+        <h2>Layer 3 · Subtitles Overlay</h2>
+        <label>Transcript</label>
+        <textarea id="transcript" placeholder="Paste the spoken transcript here. Word timings are auto-distributed across the video's duration, weighted by word length, then grouped into karaoke caption lines."></textarea>
+        <label>Words per caption line (<span id="wpcVal">5</span>)</label>
+        <input type="range" id="wpcRange" min="2" max="10" value="5" />
+        <label>Font size (<span id="fontVal">54</span>px)</label>
+        <input type="range" id="fontRange" min="24" max="96" value="54" />
+        <label>Highlight color</label>
+        <input type="color" id="highlightColor" value="#ffe100" style="height:32px;" />
+        <div class="hint">Karaoke: unspoken words render white, the currently-spoken word renders in the highlight color, synced to canvas frame time.</div>
       </div>
     </div>
   </div>
 
-  <script>
-    async function loadConfig() {
-      const res = await fetch('/api/config');
-      const data = await res.json();
-      document.getElementById('configEditor').value = JSON.stringify(data, null, 2);
-      document.getElementById('bgPreview').src = '/' + data.inputs.background_image;
-      document.getElementById('fgPreview').src = '/' + data.inputs.foreground_video;
+  <video id="fgVideo" class="hidden-src" playsinline muted></video>
+
+<script type="module">
+import { Muxer, ArrayBufferTarget } from "https://cdn.jsdelivr.net/npm/mp4-muxer/+esm";
+
+// ---------- DOM ----------
+const $ = (id) => document.getElementById(id);
+const bgInput = $("bgInput"), fgInput = $("fgInput");
+const blurRange = $("blurRange"), darkRange = $("darkRange");
+const threshRange = $("threshRange"), despillRange = $("despillRange"), scaleRange = $("scaleRange");
+const transcriptEl = $("transcript"), wpcRange = $("wpcRange"), fontRange = $("fontRange"), highlightColor = $("highlightColor");
+const stage = $("stage"), ctx = stage.getContext("2d", { willReadFrequently: true });
+const fgVideo = $("fgVideo");
+const playBtn = $("playBtn"), renderBtn = $("renderBtn"), renderProgress = $("renderProgress");
+const statusEl = $("status"), downloadLink = $("downloadLink");
+
+const W = stage.width, H = stage.height;
+const offscreen = document.createElement("canvas");
+const offCtx = offscreen.getContext("2d", { willReadFrequently: true });
+
+// ---------- state ----------
+let bgImage = null;
+let fgReady = false;
+let words = []; // {text, start, end}
+let rafId = null;
+
+// ---------- live value labels ----------
+blurRange.oninput = () => $("blurVal").textContent = blurRange.value;
+darkRange.oninput = () => $("darkVal").textContent = darkRange.value;
+threshRange.oninput = () => $("threshVal").textContent = threshRange.value;
+despillRange.oninput = () => $("despillVal").textContent = despillRange.value;
+scaleRange.oninput = () => $("scaleVal").textContent = scaleRange.value;
+wpcRange.oninput = () => { $("wpcVal").textContent = wpcRange.value; rebuildCaptionLines(); };
+fontRange.oninput = () => $("fontVal").textContent = fontRange.value;
+transcriptEl.oninput = () => rebuildWordTimings();
+
+// ---------- asset loading ----------
+bgInput.onchange = () => {
+  const f = bgInput.files[0];
+  if (!f) return;
+  const img = new Image();
+  img.onload = () => { bgImage = img; drawFrame(fgVideo.currentTime || 0); };
+  img.src = URL.createObjectURL(f);
+};
+
+fgInput.onchange = () => {
+  const f = fgInput.files[0];
+  if (!f) return;
+  fgVideo.src = URL.createObjectURL(f);
+  fgVideo.onloadedmetadata = () => {
+    offscreen.width = fgVideo.videoWidth;
+    offscreen.height = fgVideo.videoHeight;
+    fgReady = true;
+    rebuildWordTimings();
+    drawFrame(0);
+  };
+};
+
+// ---------- karaoke timing ----------
+let captionLines = []; // {words:[{text,start,end}], start, end}
+
+function rebuildWordTimings() {
+  const raw = transcriptEl.value.trim().split(/\s+/).filter(Boolean);
+  const duration = fgVideo.duration || 0;
+  if (!raw.length || !duration) { words = []; captionLines = []; return; }
+
+  const weights = raw.map(w => Math.max(w.length, 2));
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  let t = 0;
+  words = raw.map((text, i) => {
+    const dur = (weights[i] / totalWeight) * duration;
+    const start = t, end = t + dur;
+    t += dur;
+    return { text, start, end };
+  });
+  rebuildCaptionLines();
+}
+
+function rebuildCaptionLines() {
+  const n = parseInt(wpcRange.value, 10);
+  captionLines = [];
+  for (let i = 0; i < words.length; i += n) {
+    const chunk = words.slice(i, i + n);
+    captionLines.push({ words: chunk, start: chunk[0].start, end: chunk[chunk.length - 1].end });
+  }
+}
+
+// ---------- chroma key ----------
+function keyedFrame() {
+  offCtx.drawImage(fgVideo, 0, 0, offscreen.width, offscreen.height);
+  const frame = offCtx.getImageData(0, 0, offscreen.width, offscreen.height);
+  const data = frame.data;
+  const thresh = +threshRange.value;
+  const despill = +despillRange.value / 100;
+  const feather = 30; // soft edge band to avoid hard-cut ghosting
+
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const keyDominance = g - Math.max(r, b);
+
+    if (keyDominance > thresh) {
+      data[i + 3] = 0; // fully transparent
+    } else if (keyDominance > thresh - feather) {
+      // feathered edge: partial alpha + despill (pull green toward max(r,b))
+      const edge = (thresh - keyDominance) / feather; // 0..1, 0 at core key, 1 at solid pixel
+      data[i + 3] = Math.round(255 * edge);
+      const maxRB = Math.max(r, b);
+      data[i + 1] = g - Math.round((g - maxRB) * despill);
+    } else if (keyDominance > 0) {
+      // mild green spill on an otherwise opaque pixel
+      const maxRB = Math.max(r, b);
+      data[i + 1] = g - Math.round((g - maxRB) * despill * 0.5);
     }
+  }
+  offCtx.putImageData(frame, 0, 0);
+  return offscreen;
+}
 
-    async function saveConfig() {
-      const parsed = JSON.parse(document.getElementById('configEditor').value);
-      await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: parsed }) });
-      alert('Config Saved');
-      loadConfig();
+// ---------- compositing ----------
+function currentLine(t) {
+  return captionLines.find(l => t >= l.start && t <= l.end);
+}
+
+function drawCaption(t) {
+  const line = currentLine(t);
+  if (!line) return;
+  const fontSize = +fontRange.value;
+  ctx.font = `700 ${fontSize}px -apple-system, "Segoe UI", sans-serif`;
+  ctx.textBaseline = "middle";
+
+  const gap = fontSize * 0.28;
+  const widths = line.words.map(w => ctx.measureText(w.text + " ").width);
+  const totalWidth = widths.reduce((a, b) => a + b, 0);
+  let x = (W - totalWidth) / 2;
+  const y = H * 0.85;
+
+  ctx.lineWidth = fontSize * 0.12;
+  ctx.strokeStyle = "rgba(0,0,0,0.85)";
+  ctx.lineJoin = "round";
+
+  line.words.forEach((w, i) => {
+    const active = t >= w.start && t <= w.end;
+    const label = w.text + " ";
+    ctx.strokeText(label, x, y);
+    ctx.fillStyle = active ? highlightColor.value : "#ffffff";
+    ctx.fillText(label, x, y);
+    x += widths[i];
+  });
+}
+
+function drawFrame(t) {
+  ctx.clearRect(0, 0, W, H);
+
+  // Layer 1: background, cover-fit, blur + darkness tint
+  if (bgImage) {
+    ctx.save();
+    ctx.filter = `blur(${blurRange.value}px)`;
+    const scale = Math.max(W / bgImage.width, H / bgImage.height);
+    const dw = bgImage.width * scale, dh = bgImage.height * scale;
+    ctx.drawImage(bgImage, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    ctx.restore();
+    ctx.fillStyle = `rgba(0,0,0,${darkRange.value / 100})`;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Layer 2: chroma-keyed foreground video
+  if (fgReady) {
+    const keyed = keyedFrame();
+    const scale = (+scaleRange.value / 100);
+    const dw = W * scale;
+    const dh = dw * (offscreen.height / offscreen.width);
+    const dx = (W - dw) / 2, dy = H - dh; // bottom-anchored
+    ctx.drawImage(keyed, dx, dy, dw, dh);
+  }
+
+  // Layer 3: karaoke subtitles
+  drawCaption(t);
+}
+
+function previewLoop() {
+  drawFrame(fgVideo.currentTime);
+  if (!fgVideo.paused && !fgVideo.ended) {
+    rafId = requestAnimationFrame(previewLoop);
+  } else {
+    playBtn.textContent = "▶ Play Preview";
+  }
+}
+
+playBtn.onclick = () => {
+  if (!fgReady) { statusEl.textContent = "Upload a chroma-key video first."; return; }
+  if (fgVideo.paused) {
+    fgVideo.play();
+    playBtn.textContent = "⏸ Pause Preview";
+    cancelAnimationFrame(rafId);
+    previewLoop();
+  } else {
+    fgVideo.pause();
+    playBtn.textContent = "▶ Play Preview";
+  }
+};
+
+// ---------- WebCodecs render: frame-accurate seek/draw/encode + audio mux ----------
+renderBtn.onclick = async () => {
+  if (!fgReady) { statusEl.textContent = "Upload a chroma-key video first."; return; }
+  if (typeof VideoEncoder === "undefined") {
+    statusEl.textContent = "WebCodecs unavailable — open this page in Google Chrome.";
+    return;
+  }
+
+  renderBtn.disabled = true;
+  downloadLink.style.display = "none";
+  fgVideo.pause();
+  const fps = 30;
+  const duration = fgVideo.duration;
+  const frameCount = Math.max(1, Math.floor(duration * fps));
+
+  statusEl.textContent = "Decoding audio track…";
+  const audioBuffer = await decodeAudio(fgInput.files[0]);
+
+  const muxer = new Muxer({
+    target: new ArrayBufferTarget(),
+    video: { codec: "avc", width: W, height: H },
+    audio: audioBuffer ? { codec: "aac", numberOfChannels: audioBuffer.numberOfChannels, sampleRate: audioBuffer.sampleRate } : undefined,
+    fastStart: "in-memory",
+  });
+
+  const videoEncoder = new VideoEncoder({
+    output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
+    error: (e) => console.error("video encoder error", e),
+  });
+  videoEncoder.configure({
+    codec: "avc1.640028",
+    width: W,
+    height: H,
+    bitrate: 8_000_000,
+    framerate: fps,
+  });
+
+  let audioEncoder = null;
+  if (audioBuffer) {
+    audioEncoder = new AudioEncoder({
+      output: (chunk, meta) => muxer.addAudioChunk(chunk, meta),
+      error: (e) => console.error("audio encoder error", e),
+    });
+    audioEncoder.configure({
+      codec: "mp4a.40.2",
+      sampleRate: audioBuffer.sampleRate,
+      numberOfChannels: audioBuffer.numberOfChannels,
+      bitrate: 128_000,
+    });
+    await encodeAudioBuffer(audioBuffer, audioEncoder);
+    await audioEncoder.flush();
+    statusEl.textContent = "Audio encoded. Rendering video frames…";
+  }
+
+  for (let i = 0; i < frameCount; i++) {
+    const t = i / fps;
+    await seekTo(t);
+    drawFrame(t);
+    const frame = new VideoFrame(stage, {
+      timestamp: Math.round((t * 1e6)),
+      duration: Math.round(1e6 / fps),
+    });
+    videoEncoder.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+    frame.close();
+
+    if (i % 5 === 0) {
+      renderProgress.value = i / frameCount;
+      statusEl.textContent = `Rendering frame ${i + 1} / ${frameCount}…`;
+      await new Promise(r => setTimeout(r, 0)); // yield to UI
     }
+  }
 
-    document.getElementById('uploadForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const formData = new FormData();
-      formData.append('file', document.getElementById('fileInput').files[0]);
-      await fetch('/api/upload', { method: 'POST', body: formData });
-      loadConfig();
-    };
+  statusEl.textContent = "Finalizing MP4 container…";
+  await videoEncoder.flush();
+  muxer.finalize();
 
-    async function renderVideo() {
-      document.getElementById('status').innerText = "Rendering...";
-      await fetch('/api/render', { method: 'POST' });
-      document.getElementById('status').innerText = "Render Complete!";
-      document.getElementById('outputVideo').src = "/output?" + Date.now();
+  const { buffer } = muxer.target;
+  const blob = new Blob([buffer], { type: "video/mp4" });
+  const url = URL.createObjectURL(blob);
+  downloadLink.href = url;
+  downloadLink.download = "output_short.mp4";
+  downloadLink.style.display = "block";
+
+  renderProgress.value = 1;
+  statusEl.textContent = `Done — ${(blob.size / 1024 / 1024).toFixed(1)} MB standard H.264/AAC MP4.`;
+  renderBtn.disabled = false;
+};
+
+function seekTo(t) {
+  return new Promise((resolve) => {
+    const onSeeked = () => { fgVideo.removeEventListener("seeked", onSeeked); resolve(); };
+    fgVideo.addEventListener("seeked", onSeeked);
+    fgVideo.currentTime = Math.min(t, fgVideo.duration - 0.001);
+  });
+}
+
+async function decodeAudio(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const ac = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = await ac.decodeAudioData(arrayBuffer.slice(0));
+    await ac.close();
+    return buf;
+  } catch (e) {
+    console.warn("No usable audio track:", e);
+    return null;
+  }
+}
+
+async function encodeAudioBuffer(audioBuffer, encoder) {
+  const chunkSize = 1024;
+  const channels = audioBuffer.numberOfChannels;
+  const sampleRate = audioBuffer.sampleRate;
+  const channelData = [];
+  for (let c = 0; c < channels; c++) channelData.push(audioBuffer.getChannelData(c));
+
+  for (let start = 0; start < audioBuffer.length; start += chunkSize) {
+    const len = Math.min(chunkSize, audioBuffer.length - start);
+    const interleaved = new Float32Array(len * channels);
+    for (let i = 0; i < len; i++) {
+      for (let c = 0; c < channels; c++) {
+        interleaved[i * channels + c] = channelData[c][start + i];
+      }
     }
-
-    async function runTest() {
-      document.getElementById('testResults').innerText = "Running Whisper verification...";
-      const res = await fetch('/api/test-sync', { method: 'POST' });
-      document.getElementById('testResults').innerText = JSON.stringify(await res.json(), null, 2);
-    }
-
-    loadConfig();
-  </script>
+    const data = new AudioData({
+      format: "f32",
+      sampleRate,
+      numberOfFrames: len,
+      numberOfChannels: channels,
+      timestamp: Math.round((start / sampleRate) * 1e6),
+      data: interleaved,
+    });
+    encoder.encode(data);
+    data.close();
+  }
+}
+</script>
 </body>
 </html>
