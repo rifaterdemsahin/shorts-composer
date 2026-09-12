@@ -6,7 +6,8 @@
     "source_truth_txt": "assets/script.txt"
   },
   "chroma_key": {
-    "_comment": "default-aroll.webm has a real brown backdrop, not a green screen, so color-distance keying can't cleanly separate it from skin tones. threshold=0 disables keying and composites the a-roll as an opaque inset over the background instead. Swap in real green-screen footage and a threshold like 60-90 to enable true keying.",
+    "_comment": "default-aroll.webm has a real brown backdrop, not a green screen, and no alpha channel, so RGB-distance color keying can't cleanly separate it from skin tones. method='segmentation' uses MediaPipe selfie segmentation (segmentation.py) to build a real per-frame person mask instead. Point foreground_video at real green-screen footage, set method='color' and threshold to ~60-90 to use classic chroma keying instead.",
+    "method": "segmentation",
     "key_color_rgb": [0, 255, 0],
     "threshold": 0,
     "blur": 5

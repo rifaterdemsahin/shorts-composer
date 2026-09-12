@@ -1,9 +1,12 @@
 import json
 import os
+import tempfile
 import pysrt
 
 from moviepy import ImageClip, VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.video.fx import MaskColor, Resize
+
+import segmentation
 
 DEFAULT_FONT = "/System/Library/Fonts/Supplemental/Arial.ttf"
 
@@ -47,10 +50,55 @@ def load_subtitles(srt_path, video_duration, style_cfg, video_w, video_h):
     return text_clips
 
 
-def build_composition(config_path="config.json"):
-    with open(config_path, "r") as f:
-        cfg = json.load(f)
+def _build_via_segmentation(cfg):
+    """Real background removal: MediaPipe selfie segmentation cuts the person out
+    frame-by-frame and composites them over the background image (segmentation.py),
+    then we reattach the original audio and burn subtitles in with moviepy."""
+    fg_path = cfg["inputs"]["foreground_video"]
+    bg_path = cfg["inputs"]["background_image"]
+    pos_config = cfg["foreground_transform"]["position"]
+    v_pos = pos_config[1] if isinstance(pos_config, list) else "bottom"
 
+    tmp_silent = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    try:
+        log("Running MediaPipe selfie segmentation + compositing over background...")
+        segmentation.cutout_over_background(
+            fg_path,
+            bg_path,
+            tmp_silent,
+            scale=cfg["foreground_transform"]["scale"],
+            position=v_pos,
+        )
+
+        log("Reattaching original audio...")
+        composited = VideoFileClip(tmp_silent)
+        original_audio = VideoFileClip(fg_path).audio
+        composited = composited.with_audio(original_audio)
+
+        sub_clips = load_subtitles(
+            cfg["inputs"]["subtitles_file"], composited.duration, cfg["subtitle_style"], composited.w, composited.h
+        )
+
+        log("Burning in subtitles...")
+        final_video = CompositeVideoClip([composited] + sub_clips, size=composited.size)
+
+        output_path = cfg["output"]["filepath"]
+        log(f"Encoding output video to {output_path} ...")
+        final_video.write_videofile(
+            output_path, fps=cfg["output"]["fps"], codec="libx264", audio_codec="aac", preset="ultrafast", threads=8
+        )
+        log("Encoding complete.")
+
+        composited.close()
+        final_video.close()
+        return output_path
+    finally:
+        if os.path.exists(tmp_silent):
+            os.remove(tmp_silent)
+
+
+def _build_via_color_key(cfg):
+    """Legacy path: RGB-distance chroma keying for real green/blue-screen footage."""
     log(f"Loading foreground video: {cfg['inputs']['foreground_video']}")
     fg_clip = VideoFileClip(cfg["inputs"]["foreground_video"])
 
@@ -98,6 +146,16 @@ def build_composition(config_path="config.json"):
     final_video.close()
 
     return output_path
+
+
+def build_composition(config_path="config.json"):
+    with open(config_path, "r") as f:
+        cfg = json.load(f)
+
+    method = cfg["chroma_key"].get("method", "color")
+    if method == "segmentation":
+        return _build_via_segmentation(cfg)
+    return _build_via_color_key(cfg)
 
 
 if __name__ == "__main__":

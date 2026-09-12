@@ -90,6 +90,12 @@ async def get_test_page():
         return f.read()
 
 
+@app.get("/updates", response_class=HTMLResponse)
+async def get_updates_page():
+    with open("updates.html", "r") as f:
+        return f.read()
+
+
 @app.get("/api/config")
 async def get_config():
     with open("config.json", "r") as f:

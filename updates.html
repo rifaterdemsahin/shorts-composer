@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>AI Short Composer — Updates</title>
+<style>
+  :root { color-scheme: dark; }
+  body { font-family: -apple-system, "Segoe UI", sans-serif; background: #121212; color: #eee; padding: 20px; margin: 0; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #888; font-size: 13px; margin-bottom: 20px; }
+  .card { background: #1e1e1e; padding: 16px 18px; border-radius: 8px; margin-bottom: 16px; max-width: 760px; }
+  .card h2 { font-size: 14px; margin: 0 0 6px; color: #9ecbff; }
+  .date { font-size: 11px; color: #777; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+  .card ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; color: #ddd; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; margin-left: 8px; vertical-align: middle; }
+  .tag-fix { background: #4a1414; color: #ff9d9d; }
+  .tag-feature { background: #113d2c; color: #6fe3a4; }
+
+  .sitenav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; margin: -20px -20px 20px; padding: 12px 20px; }
+  .sitenav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .brand { font-weight: 700; font-size: 14px; color: #fff; }
+  .sitenav nav { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .navlink { color: #aaa; text-decoration: none; font-size: 13px; padding: 4px 2px; border-bottom: 2px solid transparent; }
+  .navlink:hover { color: #fff; }
+  .navlink.active { color: #9ecbff; border-bottom-color: #9ecbff; }
+  .navlink-accent { color: #6fe3a4; }
+  .navlink-accent:hover { color: #8ef0b8; }
+  .sitefooter { margin: 32px -20px -20px; padding: 18px 20px; border-top: 1px solid #2a2a2a; background: #161616; }
+  .sitefooter-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #777; }
+  .footer-links { display: flex; gap: 14px; }
+  .footer-links a { color: #888; text-decoration: none; }
+  .footer-links a:hover { color: #ccc; }
+</style>
+</head>
+<body>
+  <header class="sitenav">
+    <div class="sitenav-inner">
+      <span class="brand">🎬 AI Short Composer</span>
+      <nav>
+        <a href="/" class="navlink">Editor</a>
+        <a href="/test" class="navlink">Pipeline Test</a>
+        <a href="/updates" class="navlink active">Updates</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener" class="navlink">GitHub</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener" class="navlink navlink-accent">Live Demo ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <h1>Updates</h1>
+  <div class="sub">Changelog for the server-side pipeline and pages.</div>
+
+  <div class="card">
+    <div class="date">Latest</div>
+    <h2>Real background removal via MediaPipe selfie segmentation <span class="tag tag-fix">Fix</span></h2>
+    <ul>
+      <li>The bundled <code>default-aroll.webm</code> has no alpha channel and was shot against a plain brown wall, not a green screen — flat RGB-distance chroma keying couldn't separate that backdrop from skin tones and left visible cutout artifacts on the face/hands.</li>
+      <li>Replaced it with real per-frame person segmentation (<code>segmentation.py</code>, MediaPipe <code>selfie_segmenter.tflite</code>) that builds an accurate alpha mask for the speaker and composites it over the background image with OpenCV, before the original audio is reattached and subtitles are burned in.</li>
+      <li><code>config.json</code>'s <code>chroma_key.method</code> now supports <code>"segmentation"</code> (default, for real-world non-green-screen footage) or <code>"color"</code> (the original RGB-distance keying, for real green/blue-screen footage).</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="date">Earlier</div>
+    <h2>Shared navigation, footer, and a pipeline test page <span class="tag tag-feature">Feature</span></h2>
+    <ul>
+      <li>Added a shared top nav and footer (Editor / Pipeline Test / Updates / GitHub / Live Demo) across all pages.</li>
+      <li>Added <code>/test</code> with live pipeline stage indicators, a searchable/filterable live log stream, the rendered output, and the Whisper verification report — backed by new <code>/api/run</code> and <code>/api/status</code> endpoints.</li>
+      <li>Bundled default demo assets (background image, a-roll) directly into <code>assets/</code> and wired them into <code>config.json</code> so the pipeline runs out of the box.</li>
+      <li>Ported <code>composer.py</code> to the moviepy 2.x API and generated real subtitles/ground-truth script from the a-roll's actual narration via Whisper.</li>
+    </ul>
+  </div>
+
+  <footer class="sitefooter">
+    <div class="sitefooter-inner">
+      <span>AI Short Composer</span>
+      <div class="footer-links">
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener">Repo</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener">GitHub Pages</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

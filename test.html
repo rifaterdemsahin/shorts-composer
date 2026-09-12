@@ -32,10 +32,42 @@
   #statusLine { font-size: 13px; color: #9ecbff; margin-top: 6px; min-height: 18px; }
   details summary { cursor: pointer; font-size: 12px; color: #888; }
   code { background: #2a2a2a; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+  .sitenav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; margin: -20px -20px 20px; padding: 12px 20px; }
+  .sitenav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .brand { font-weight: 700; font-size: 14px; color: #fff; }
+  .sitenav nav { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .navlink { color: #aaa; text-decoration: none; font-size: 13px; padding: 4px 2px; border-bottom: 2px solid transparent; }
+  .navlink:hover { color: #fff; }
+  .navlink.active { color: #9ecbff; border-bottom-color: #9ecbff; }
+  .navlink-accent { color: #6fe3a4; }
+  .navlink-accent:hover { color: #8ef0b8; }
+  .sitefooter { margin: 32px -20px -20px; padding: 18px 20px; border-top: 1px solid #2a2a2a; background: #161616; }
+  .sitefooter-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #777; }
+  .footer-links { display: flex; gap: 14px; }
+  .footer-links a { color: #888; text-decoration: none; }
+  .footer-links a:hover { color: #ccc; }
+
+  .logsHead { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+  .logsHead h2 { margin: 0; }
+  #logSearch { width: 160px; padding: 5px 8px; margin: 0; font-size: 12px; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 4px; }
+  .logCount { font-size: 11px; color: #666; white-space: nowrap; }
 </style>
 </head>
 <body>
-  <a class="back" href="/">&larr; Back to editor</a>
+  <header class="sitenav">
+    <div class="sitenav-inner">
+      <span class="brand">🎬 AI Short Composer</span>
+      <nav>
+        <a href="/" class="navlink">Editor</a>
+        <a href="/test" class="navlink active">Pipeline Test</a>
+        <a href="/updates" class="navlink">Updates</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener" class="navlink">GitHub</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener" class="navlink navlink-accent">Live Demo ↗</a>
+      </nav>
+    </div>
+  </header>
+
   <h1>AI Short Composer — Pipeline Test</h1>
   <div class="sub">Runs the real server-side pipeline (chroma-key/composite &rarr; subtitle burn-in &rarr; Whisper verification) against the bundled default assets and shows live logs.</div>
 
@@ -57,7 +89,11 @@
       </div>
 
       <div class="card">
-        <h2>Live logs</h2>
+        <div class="logsHead">
+          <h2 style="margin:0;">Live logs</h2>
+          <input id="logSearch" type="search" placeholder="Filter logs…" />
+        </div>
+        <div class="logCount" id="logCount"></div>
         <pre id="logs">Waiting for a run…</pre>
       </div>
 
@@ -91,10 +127,35 @@
     </div>
   </div>
 
+  <footer class="sitefooter">
+    <div class="sitefooter-inner">
+      <span>AI Short Composer</span>
+      <div class="footer-links">
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener">Repo</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener">GitHub Pages</a>
+      </div>
+    </div>
+  </footer>
+
 <script>
 const $ = (id) => document.getElementById(id);
-const runBtn = $("runBtn"), statusLine = $("statusLine"), logsEl = $("logs");
+const runBtn = $("runBtn"), statusLine = $("statusLine"), logsEl = $("logs"), logSearch = $("logSearch"), logCount = $("logCount");
 let polling = null;
+let currentLogs = [];
+
+function renderLogs() {
+  const term = logSearch.value.trim().toLowerCase();
+  const filtered = term
+    ? currentLogs.filter(l => l.message.toLowerCase().includes(term))
+    : currentLogs;
+  logsEl.textContent = filtered.map(l => l.message).join("\n") || (currentLogs.length ? "No log lines match your filter." : "Waiting for a run…");
+  logCount.textContent = currentLogs.length
+    ? (term ? `${filtered.length} / ${currentLogs.length} lines` : `${currentLogs.length} lines`)
+    : "";
+  logsEl.scrollTop = logsEl.scrollHeight;
+}
+logSearch.oninput = renderLogs;
 
 async function loadConfig() {
   const res = await fetch("/api/config");
@@ -133,8 +194,8 @@ async function poll() {
   const state = await res.json();
 
   renderStage(state.stage);
-  logsEl.textContent = state.logs.map(l => l.message).join("\n") || "Waiting for a run…";
-  logsEl.scrollTop = logsEl.scrollHeight;
+  currentLogs = state.logs;
+  renderLogs();
 
   if (state.stage === "rendering") statusLine.textContent = "Rendering video with moviepy (chroma-key/composite + subtitle burn-in)…";
   else if (state.stage === "verifying") statusLine.textContent = "Transcribing output with Whisper and comparing to script…";
@@ -160,7 +221,8 @@ function stopPolling() {
 runBtn.onclick = async () => {
   runBtn.disabled = true;
   statusLine.textContent = "Starting…";
-  logsEl.textContent = "";
+  currentLogs = [];
+  renderLogs();
   $("reportTable").style.display = "none";
   try {
     await fetch("/api/run", { method: "POST" });

@@ -32,9 +32,37 @@
   #status { font-size: 12px; color: #9ecbff; min-height: 16px; }
   video.hidden-src { display: none; }
   .hint { font-size: 11px; color: #777; margin-top: 4px; line-height: 1.4; }
+
+  .sitenav { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; margin: -20px -20px 20px; padding: 12px 20px; }
+  .sitenav-inner { max-width: 1400px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .brand { font-weight: 700; font-size: 14px; color: #fff; }
+  .sitenav nav { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  .navlink { color: #aaa; text-decoration: none; font-size: 13px; padding: 4px 2px; border-bottom: 2px solid transparent; }
+  .navlink:hover { color: #fff; }
+  .navlink.active { color: #9ecbff; border-bottom-color: #9ecbff; }
+  .navlink-accent { color: #6fe3a4; }
+  .navlink-accent:hover { color: #8ef0b8; }
+  .sitefooter { margin: 32px -20px -20px; padding: 18px 20px; border-top: 1px solid #2a2a2a; background: #161616; }
+  .sitefooter-inner { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 12px; color: #777; }
+  .footer-links { display: flex; gap: 14px; }
+  .footer-links a { color: #888; text-decoration: none; }
+  .footer-links a:hover { color: #ccc; }
 </style>
 </head>
 <body>
+  <header class="sitenav">
+    <div class="sitenav-inner">
+      <span class="brand">🎬 AI Short Composer</span>
+      <nav>
+        <a href="/" class="navlink active">Editor</a>
+        <a href="/test" class="navlink">Pipeline Test</a>
+        <a href="/updates" class="navlink">Updates</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener" class="navlink">GitHub</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener" class="navlink navlink-accent">Live Demo ↗</a>
+      </nav>
+    </div>
+  </header>
+
   <h1>AI Short Composer — Client-Side Layer Editor</h1>
   <div class="layout">
 
@@ -101,6 +129,17 @@
   </div>
 
   <video id="fgVideo" class="hidden-src" playsinline muted></video>
+
+  <footer class="sitefooter">
+    <div class="sitefooter-inner">
+      <span>AI Short Composer</span>
+      <div class="footer-links">
+        <a href="https://github.com/rifaterdemsahin/shorts-composer" target="_blank" rel="noopener">Repo</a>
+        <a href="https://github.com/rifaterdemsahin/shorts-composer/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://rifaterdemsahin.github.io/shorts-composer/" target="_blank" rel="noopener">GitHub Pages</a>
+      </div>
+    </div>
+  </footer>
 
 <script type="module">
 import { Muxer, ArrayBufferTarget } from "https://cdn.jsdelivr.net/npm/mp4-muxer/+esm";
