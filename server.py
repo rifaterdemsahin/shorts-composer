@@ -10,6 +10,8 @@ from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
 import composer
+import segmentation
+import subtitles
 from composer import build_composition
 from verifier import verify_pipeline
 
@@ -44,8 +46,17 @@ def run_pipeline():
     STATE["report"] = None
     STATE["error"] = None
 
-    original_log = composer.log
+    # Route every module's log() through push_log so segmentation progress,
+    # Whisper subtitle timing, and any errors from either all show up live
+    # in the /test page instead of only the top-level composer messages.
+    original_logs = {
+        "composer": composer.log,
+        "segmentation": segmentation.log,
+        "subtitles": subtitles.log,
+    }
     composer.log = push_log
+    segmentation.log = push_log
+    subtitles.log = push_log
     try:
         push_log("Pipeline started.")
         output_path = build_composition("config.json")
@@ -71,7 +82,9 @@ def run_pipeline():
         push_log(f"ERROR: {e}")
         push_log(traceback.format_exc())
     finally:
-        composer.log = original_log
+        composer.log = original_logs["composer"]
+        segmentation.log = original_logs["segmentation"]
+        subtitles.log = original_logs["subtitles"]
 
 
 class ConfigPayload(BaseModel):

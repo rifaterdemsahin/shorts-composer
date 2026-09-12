@@ -1,16 +1,32 @@
 1
-00:00:00,000 --> 00:00:08,560
-As the jobs are going to get converged into one, instead of having lots of different engineering
+00:00:02,520 --> 00:00:04,540
+As the jobs are going to get
 
 2
-00:00:08,560 --> 00:00:14,920
-jobs, we are going to have an AI engineer job that's going to replace the other jobs.
+00:00:04,540 --> 00:00:07,220
+converged into one, instead of having lots
 
 3
-00:00:14,920 --> 00:00:20,120
-That's my prediction and I think the cars are getting reshuffled and we have to take our
+00:00:07,220 --> 00:00:09,580
+of different engineering jobs, we are going
 
 4
-00:00:20,120 --> 00:00:20,960
-positions.
+00:00:09,580 --> 00:00:12,760
+to have an AI engineer job that's
+
+5
+00:00:12,760 --> 00:00:15,020
+going to replace the other jobs. That's
+
+6
+00:00:15,020 --> 00:00:17,520
+my prediction and I think the cars
+
+7
+00:00:17,520 --> 00:00:19,700
+are getting reshuffled and we have to
+
+8
+00:00:19,700 --> 00:00:20,720
+take our positions.
 

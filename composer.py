@@ -7,6 +7,7 @@ from moviepy import ImageClip, VideoFileClip, TextClip, CompositeVideoClip
 from moviepy.video.fx import MaskColor, Resize
 
 import segmentation
+import subtitles as subtitles_module
 
 DEFAULT_FONT = "/System/Library/Fonts/Supplemental/Arial.ttf"
 
@@ -151,6 +152,11 @@ def _build_via_color_key(cfg):
 def build_composition(config_path="config.json"):
     with open(config_path, "r") as f:
         cfg = json.load(f)
+
+    log("Checking whether subtitles need to be (re)generated with Whisper...")
+    regenerated = subtitles_module.ensure_subtitles(cfg)
+    if regenerated:
+        log("Subtitles were regenerated — using fresh Whisper-timed captions for this render.")
 
     method = cfg["chroma_key"].get("method", "color")
     if method == "segmentation":
